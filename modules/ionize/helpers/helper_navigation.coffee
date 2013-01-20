@@ -152,7 +152,7 @@
     menu_id = 1 
 
     # default level
-    page_level = 0
+    page_level = 100
     
     level_open    = "<ul>"  # HTML inserted before each level change
     level_close   = "</ul>" # HTML inserted after each level change
@@ -178,7 +178,7 @@
       #
       # Page level
       #
-      page_level = attrs.level if attrs.level
+      page_level = attrs.level if attrs.level?      
 
       #
       # Items & level HTML tags
@@ -295,8 +295,8 @@
             if args.length>=1
               
               htmlResponse += item_open
-
-              htmlResponse += cede args[args.length-1] # Compile the nested content to html 
+              if currentLevel<=page_level
+                htmlResponse += cede args[args.length-1] # Compile the nested content to html 
               args[args.length-1]() 
 
               
@@ -329,7 +329,8 @@
           page.id_page,
           page.home,
           page.online,
-          page.appears
+          page.appears,
+          page.link
         FROM
           page_lang, page, menu
         WHERE
@@ -355,16 +356,22 @@
               # Storing results in the responses array
               #
               currentResponse = {}
-              currentResponse["path"]       = newPath;
-              currentResponse["value"]      = page.id_page;
-              currentResponse["title"]      = page.title;
-              currentResponse["nav_title"]  = page.nav_title;
-              currentResponse["level"]      = page.level;
-              currentResponse["url"]        = page.url;
-              currentResponse["home"]       = page.home;
-              currentResponse["id_page"]    = page.id_page;
-              currentResponse["online"]     = page.online;
+              currentResponse["path"]       = newPath
+              currentResponse["value"]      = page.id_page
+              currentResponse["title"]      = page.title
+              currentResponse["nav_title"]  = page.nav_title
+              currentResponse["level"]      = page.level
+              currentResponse["url"]        = page.url
+              currentResponse["home"]       = page.home
+              currentResponse["id_page"]    = page.id_page
+              currentResponse["online"]     = page.online
+              currentResponse["link"]       = page.link
               
+              #
+              # If a link is declared, we replace url by the link
+              #
+              if page.link then currentResponse["url"] = page.link
+
               if (page.appears is 1) and (page.online or @req.session.usergroup_level >= 1000 )
                 responses.push( currentResponse )
 

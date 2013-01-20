@@ -119,8 +119,11 @@ Date::_toMysql = ->
     strDate = ''
   else  
     strDate = this.getFullYear()+'-'
-    strDate += '0' if this.getMonth()<=9
+    
+    # Month starts at 0, we add 1 for human display
+    strDate += '0' if parseInt(this.getMonth())<=8
     strDate += this.getMonth()+1+'-'
+    
     strDate += '0' if this.getDate()<=9
     strDate += this.getDate()+' '
     
@@ -191,6 +194,25 @@ Page_lang         = db.import( __dirname + "/models/model_pageLang" )
 User              = db.import( __dirname + "/models/model_user" )
 User_group        = db.import( __dirname + "/models/model_userGroup" )
 
+
+#
+# Run migrations
+#
+Article.migrate()
+Article_category.migrate()
+Article_lang.migrate()
+Article_media.migrate()
+Article_type.migrate()
+Category.migrate()
+Category_lang.migrate()
+Lang.migrate()
+Media.migrate()
+Menu.migrate()
+Page.migrate()
+Page_article.migrate()
+Page_lang.migrate()
+User.migrate()
+User_group.migrate()
 
 #
 # Associations, not used right now
@@ -333,6 +355,16 @@ initDatabase = ->
         menu.save()
           .on 'success', ->
             console.log "Default menu created"
+
+    menu = Menu.build()
+    menu.title = "System"
+    menu.name = "system"
+    menu.ordering = 2
+
+    menu.save()
+      .on "success", (menu) ->
+        menu.id_menu = menu.id
+        menu.save()          
 
   #
   # Start process

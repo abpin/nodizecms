@@ -89,6 +89,7 @@
 
 
     views = {}
+    blocks = []
 
     #
     # Loading theme views
@@ -102,7 +103,19 @@
         if err
           req.send "Views definition not found"
         else
-          views = JSON.parse( data )          
+          views = JSON.parse( data )   
+
+           # Sorting blocks
+          for key, value of views.blocks
+            item = []
+            item.file = key
+            item.name = value
+
+            blocks.push( item )
+            
+          blocks = blocks.sort (a, b) ->
+            return a.name.localeCompare(b.name)
+
           loadPage()
 
     #
@@ -132,6 +145,7 @@
             ion_lang            : ion_lang[ req.params.lang ]
             page                : page
             views               : views
+            blocks              : blocks
             pixlr_target        : __nodizeSettings.get("pixlr_callback_server") + __nodizeSettings.get("pixlr_callback_url")
 
           
@@ -153,6 +167,7 @@
     parent_page = null
     page_article = null
     views = {}
+    blocks = []
 
     #
     # Loading theme views
@@ -166,7 +181,19 @@
         if err
           req.send "Views definition not found"
         else
-          views = JSON.parse( data )          
+          views = JSON.parse( data )
+
+          # Sorting blocks
+          for key, value of views.blocks
+            item = []
+            item.file = key
+            item.name = value
+
+            blocks.push( item )
+            
+          blocks = blocks.sort (a, b) ->
+            return a.name.localeCompare(b.name)
+
           loadPage()
 
     #
@@ -222,10 +249,11 @@
             article_by_lang[ lang ] = ""
           
           # Filling with values from database for existing translations
-          for article_lang in article_langs                    
+          for article_lang in article_langs              
             article_by_lang[ article_lang.lang ] = article_lang
             article_by_lang[ article_lang.lang ].content = sanitize( article_by_lang[ article_lang.lang ].content ).entityEncode()
-                      
+            article_by_lang[ article_lang.lang ].title = sanitize( article_by_lang[ article_lang.lang ].title ).entityEncode()
+
           if article_langs
             loadArticleCategories( article, article_by_lang )
           else
@@ -265,6 +293,7 @@
             lang                : req.params.lang      
             ion_lang            : ion_lang[ req.params.lang ]
             views               : views
+            blocks              : blocks
             pixlr_target        : __nodizeSettings.get("pixlr_callback_server") + __nodizeSettings.get("pixlr_callback_url")
           
         .on 'failure', (err) ->
@@ -349,6 +378,7 @@
         article_lang.online = values['online_'+lang] or 0
         article_lang.title = values['title_'+lang]
         article_lang.subtitle = values['subtitle_'+lang]
+        article_lang.summary = values['summary_'+lang]
          
         # Save to database
         article_lang.save()
@@ -393,11 +423,14 @@
         Article_lang.find({
           where: {id_article:values.id_article, lang:lang}
         }).on 'success', (article_lang)->   
-            if article_lang      
+            if article_lang                  
+
               article_lang.content = values['content_'+lang]
               article_lang.title = values['title_'+lang]
               article_lang.subtitle = values['subtitle_'+lang]
               article_lang.online = values['online_'+lang]
+              article_lang.summary = values['summary_'+lang]              
+
               article_lang.save()
                 .on 'success', (article_lang) =>
                   
@@ -594,7 +627,101 @@
       
       if err
         console.log "Error while moving article",err
-      else                    
+      else
+        if values.copy
+
+          #
+          # Response
+          #
+          message = 
+            message_type:""
+            message:""
+            update:[]
+            callback:[          
+              
+                       
+              fn:"mainTree.insertElement"
+              args: [            
+                id_article:values.id_article
+                name:article.name
+                flag:"0"
+                title:article.name
+                online:page_article.online
+                id_page:values.id_page
+                ordering:"1"            
+                inserted:true
+                link_type:""
+                link_id:""
+                link:""
+              ,
+                "article"
+              ]
+            ,
+              fn:"ION.notification"
+              args : [
+                "success","Article linked to page"
+              ]
+            ]
+
+        else
+
+          #
+          # Response
+          #
+          message = 
+            message_type:""
+            message:""
+            update:[]
+            callback:[          
+              
+              fn:"ION.unlinkArticleFromPageDOM"
+              args:
+                id_page:values.id_page_origin
+                id_article:values.id_article
+            ,          
+              fn:"mainTree.insertElement"
+              args: [            
+                id_article:values.id_article
+                name:article.name
+                flag:"0"
+                title:article.name
+                online:page_article.online
+                id_page:values.id_page
+                ordering:"1"            
+                inserted:true
+                link_type:""
+                link_id:""
+                link:""
+              ,
+                "article"
+              ]
+            ,
+              fn:"ION.notification"
+              args : [
+                "success","Article linked to page"
+              ]
+            ]
+
+
+        req.send( message ) 
+
+
+    if values.copy      
+      Article.link( values, callback )
+    else
+      Article.move( values, callback )
+
+
+
+  #
+  # ARTICLE UNLINK FROM PAGE
+  #
+  @post "/:lang/admin/article/unlink/:id_page/:id_article" : (req) ->
+    
+    callback = (err, article, page_article) =>
+      if err
+        console.log "Error while unlinking article",err
+      else      
         #
         # Response
         #
@@ -605,41 +732,24 @@
           callback:[          
             
             fn:"ION.unlinkArticleFromPageDOM"
-            args:
-              id_page:values.id_page_origin
-              id_article:values.id_article
-          ,          
-            fn:"mainTree.insertElement"
-            args: [            
-              id_article:values.id_article
-              name:article.name
-              flag:"0"
-              title:article.name
-              online:page_article.online
-              id_page:values.id_page
-              ordering:"1"            
-              inserted:true
-              link_type:""
-              link_id:""
-              link:""
+            args: [
+              id_page:@params.id_page
+              id_article:@params.id_article
             ,
               "article"
             ]
           ,
             fn:"ION.notification"
             args : [
-              "success","Article linked to page"
+              "success","Article unlinked from page"
             ]
           ]
 
+
         req.send( message ) 
-
-
-
-    Article.moveArticle( values, callback )
-
-
     
+    Article.unlink( @params, callback )
+      
   #
   # ARTICLE DELETE
   #

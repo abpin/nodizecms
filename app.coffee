@@ -1,13 +1,13 @@
 
 #
-#  .
+#  ._   _           _ _
 #  | \ | |         | (_)
 #  |  \| | ___   __| |
 #  | . ` |/ _ \ / _` | |_  / _ \
 #  | |\  | (_) | (_| | |/ /  __/
 #  \_| \_/\___/ \__,_|_/___\___|
 #
-#  v0.0.4
+#  v0.0.5
 #
 #  Nodize CMS by Hypee (c)2012 (www.hypee.com)
 #  Released under MIT License
@@ -36,7 +36,7 @@ else
 nodizeSettings.add( 'nodize', {type: 'file', file:nodizeSettingsFile } )
 
 #
-# Starting profiler if specified in settings
+# Starting profiler if enabled in settings
 #
 require("nodetime").profile() if nodizeSettings.get("nodetime_profiler")
 
@@ -181,7 +181,10 @@ nodize.io.set 'log level', 1
 # Defining the port we listen on
 # Default to 3000
 #
-port = process.env.PORT or 3000
+port =  process.env.VCAP_APP_PORT or # Used by AppFog 
+        process.env.PORT or 
+        nodizeSettings.get( "server_port" ) or # Defined in "/settings/nodize.json" of "/settings/nodize.local.json"
+        3000
 
 
 #
@@ -201,7 +204,7 @@ if cluster.isMaster
   console.log "ZappaJS", nodize.zappa.version, "orchestrating the show"
 
   console.log """
-  .
+  ._   _           _ _
   | \\ | |         | (_)
   |  \\| | ___   __| |_ _______
   | . ` |/ _ \\ / _` | |_  / _ \\

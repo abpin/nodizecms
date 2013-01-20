@@ -198,8 +198,8 @@
   # CREATING a page
   #
   @get "/:lang/admin/page/create/:id" : (req) =>
-    # Retrieve page_id from parameter in URL
-    page_id = req.params.id
+    # Menu in which we want to create a page
+    menu_id = req.params.id
 
     #
     # Create an empty page object
@@ -243,7 +243,7 @@
           #
           req.render "backend_page", 
             layout        : no
-            page_id       : page_id
+            menu_id       : menu_id
             page          : page
             page_by_lang  : page_by_lang          
             hardcode      : @helpers 
@@ -309,7 +309,7 @@
       page_lang.meta_title = values['meta_title_'+lang]
       page_lang.nav_title = values['nav_title_'+lang]
       page_lang.subnav_title = "" 
-      page_lang.home = page.home
+      page_lang.home = page.home      
 
       #
       # Save record to database
@@ -326,40 +326,54 @@
             # - Insert page in the tree
             #  
 
-
-            message =  
-              message_type  : "success"
-              message       : "Page saved"
+            #
+            # Get menu name & build message
+            #
+            Menu.find({where:{id_menu:page.id_menu}})
+              .on 'success', (menu) ->                
               
-              update        : [
-                element : "mainPanel"
-                url     : 'page\/\/edit\/'+page_lang.id_page
-                title   : "Page edit"
-              ]
-              
-              callback      : 
-                fn    : "mainTree.insertElement"
-                args  : [
-                  title     : page.name
-                  id_page   : page_lang.id_page
-                  name      : page_lang.name
-                  online    : page_lang.online                  
-                  id_parent : page.id_parent
-                  level     : "0"
-                  home      : "0"
-                  'page'
-                ]
-                        
-            
-            #
-            # Send response to client
-            #
-            req.send message
-            
-            #
-            # Inform modules that a new page has been created
-            __nodizeEvents.emit  'pageSave', 'page created'
+                message =  
+                  message_type  : "success"
+                  message       : "Page saved"
+                  
+                  update        : [
+                    element : "mainPanel"
+                    url     : 'page\/\/edit\/'+page_lang.id_page
+                    title   : "Page edit"
+                  ]
+                  
+                  callback      : 
+                    fn    : menu.name + "Tree.insertElement"
+                    args  : [
+                      title     : page.name
+                      id_page   : page_lang.id_page
+                      name      : page_lang.name
+                      online    : page_lang.online                  
+                      id_parent : page.id_parent
+                      id_menu   : page.id_menu
+                      level     : "0"
+                      home      : "0"
+                      menu      :
+                        id_menu   : page.id_menu
+                        name      : page_lang.name
+                        title     : page_lang.title
+                        ordering  : "1"
+                      'page'
+                    ]
+                            
+                
+                #
+                # Send response to client
+                #
+                req.send message
+                
+                #
+                # Inform modules that a new page has been created
+                __nodizeEvents.emit  'pageSave', 'page created'
 
+              .on 'failure', (err) ->
+                console.log 'database error ', err
+            
           
         .on 'failure', (err) ->
           console.log 'save failed : ', err
@@ -380,7 +394,7 @@
               page_lang.online = values['online_'+lang]
               page_lang.meta_title = values['meta_title_'+lang]
               page_lang.nav_title = values['nav_title_'+lang]
-              page_lang.home = values['home']              
+              page_lang.home = values['home'] 
               
               page_lang.save()
                 .on 'success', (page_lang) =>
@@ -448,6 +462,12 @@
           page.view = values.view
           page.id_parent = values.id_parent
           page.appears = values.appears
+          page.name = values.page_name
+          page.updated = new Date            
+          page.publish_on = values.publish_on
+          page.publish_off = values.publish_off
+          page.logical_date = values.logical_date             
+          
 
           if values.id_parent == "0"
             page.level = 0        
@@ -485,6 +505,12 @@
       page.priority = values.priority
       page.view = values.view
       page.appears = values.appears
+      page.created = new Date
+      page.updated = new Date
+      page.publish_on = values.publish_on
+      page.publish_off = values.publish_off
+      page.logical_date = values.logical_date
+              
 
       
       if values.id_parent == "0"
@@ -608,6 +634,7 @@
     id_page = req.body.id_page    
     views = ''
     types = ''
+    blocks = []
 
     #
     # Loading theme views
@@ -619,11 +646,23 @@
           req.send "Views definition not found"
         else
           views = JSON.parse( data )
+          
+          # Sorting blocks
+          for key, value of views.blocks
+            item = []
+            item.file = key
+            item.name = value
+
+            blocks.push( item )
+            
+          blocks = blocks.sort (a, b) ->
+            return a.name.localeCompare(b.name)
+
           loadTypes()
 
     # Retrieve id_page from parameter in URL
     loadTypes = ->      
-      Article_type.findAll( )
+      Article_type.findAll( {order:'type'} )
         .on 'success', (article_types) ->
           if article_types
             types = article_types
@@ -668,6 +707,7 @@
               lang      : req.params.lang
               ion_lang  : ion_lang[ req.params.lang ]              
               views     : views
+              blocks    : blocks
               types     : types
           else
             req.send "articles on page #{page_id} not found"

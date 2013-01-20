@@ -24,7 +24,8 @@
     # Parameters
     #
     from = '' 
-    type = '' 
+    type = ''
+    id = '' 
     live = false
     refresh = false
     params = {}
@@ -61,6 +62,11 @@
       #      
       params = if attrs?.params then attrs.params else {}
 
+      #
+      # "Id" parameter, to select article by id 
+      #
+      id = if attrs?.id then attrs.id else ""
+
     #
     # We are launching an asynchronous request,
     # we need to register it, to be able to wait for it to be finished
@@ -83,7 +89,13 @@
       whereType = "AND (page_article.id_type is null OR page_article.id_type = 0) "
 
     #
-    # When connected which right >= editors, offline articles are also displayed
+    # Search on exact id
+    #
+    if id isnt ''
+      whereType += "AND page_article.id_article = #{id} "
+
+    #
+    # When connected with right >= editors, offline articles are also displayed
     #
 
     if @req.session.usergroup_level > 1000
@@ -93,7 +105,7 @@
 
 
     if from isnt ''
-      page_search = "SELECT * FROM article, article_lang, page_article, page "+
+      page_search = "SELECT *, page_article.view as view FROM article, article_lang, page_article, page "+
                     fromType +
                     "WHERE article_lang.id_article = article.id_article AND "+
                     "article_lang.lang = '"+@lang+"' AND "+
@@ -140,11 +152,11 @@
 
           if live
             @article.content = "<div class='ion_live_content'>" + @article.content + "</div>"
-
-          
+        
           # Render nested tags
           if args.length>=1
             htmlResponse += "<span id='ion_liveArticle_#{@article.id_article}'>" if live
+            htmlResponse += "<span id='ion_refreshArticle_#{@article.id_article}'>" if refresh            
             htmlResponse += cede args[args.length-1] # Compile the nested content to html            
             htmlResponse += "</span>" if live
 
